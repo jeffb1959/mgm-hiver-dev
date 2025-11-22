@@ -1,0 +1,111 @@
+<!-- ======================================================
+     MGM - Suivi de golf intérieur
+     Fichier : upload-scorecard.html
+     Version : 1.0.0 (DEV)
+     Rôle    : Outil admin pour uploader un PDF de score
+               et l'associer à une date de partie
+     Base    : mgm-hivers-dev (Firebase DEV)
+     ====================================================== -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>MGM - Upload PDF Scorecard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CDN (OK pour outil admin) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Ton CSS global (optionnel si tu veux le même look) -->
+  <link rel="stylesheet" href="mgm.css" />
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 text-gray-100">
+
+  <div class="min-h-screen flex items-center justify-center px-4 py-8">
+    <div class="w-full max-w-xl bg-white/95 text-gray-900 rounded-2xl shadow-2xl p-6 md:p-8">
+      <h1 class="text-2xl font-bold text-center text-slate-800 mb-2">
+        Upload PDF de score
+      </h1>
+      <p class="text-sm text-center text-gray-500 mb-6">
+        Outil administrateur pour associer un PDF de carte de pointage<br />
+        à toutes les parties jouées à une date donnée.
+      </p>
+
+      <!-- Zone messages -->
+      <div id="statusBox" class="hidden mb-4 rounded-lg px-4 py-3 text-sm"></div>
+
+      <!-- Formulaire principal -->
+      <form id="uploadForm" class="space-y-6">
+        <!-- Date de la partie -->
+        <div>
+          <label for="gameDate" class="block text-sm font-medium text-gray-700 mb-1">
+            Date de la partie
+          </label>
+          <input
+            type="date"
+            id="gameDate"
+            name="gameDate"
+            class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+            required
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            Doit correspondre au champ <code>date</code> dans les tableaux <code>games</code> des joueurs
+            (format AAAA-MM-JJ, ex. 2025-10-29).
+          </p>
+        </div>
+
+        <!-- Fichier PDF -->
+        <div>
+          <label for="pdfFile" class="block text-sm font-medium text-gray-700 mb-1">
+            Fichier PDF de la carte de pointage
+          </label>
+          <input
+            type="file"
+            id="pdfFile"
+            name="pdfFile"
+            accept="application/pdf"
+            class="w-full text-sm text-gray-700"
+            required
+          />
+          <p class="text-xs text-gray-500 mt-1">
+            Un seul PDF par date. Le même fichier sera associé à tous les joueurs ayant une partie à cette date.
+          </p>
+        </div>
+
+        <!-- Boutons -->
+        <div class="flex items-center justify-between gap-4">
+          <button
+            type="button"
+            id="backBtn"
+            class="text-sm text-slate-600 hover:text-slate-900 underline"
+          >
+            ⬅ Retour à la page admin
+          </button>
+
+          <button
+            type="submit"
+            class="bg-slate-800 hover:bg-slate-900 text-white font-semibold px-4 py-2 rounded-lg shadow-md text-sm"
+          >
+            Uploader et associer le PDF
+          </button>
+        </div>
+      </form>
+
+      <div class="mt-6 border-t pt-4 text-xs text-gray-500">
+        <p>
+          Étapes :
+        </p>
+        <ol class="list-decimal list-inside mt-1 space-y-1">
+          <li>Choisir la date de la partie.</li>
+          <li>Choisir le PDF contenant toutes les cartes de cette soirée.</li>
+          <li>L'outil upload le PDF dans Firebase Storage.</li>
+          <li>Pour tous les joueurs qui ont une partie à cette date, le champ <code>scorecardUrl</code> est mis à jour.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script spécifique upload PDF -->
+  <script type="module" src="upload-scorecard.js"></script>
+</body>
+</html>

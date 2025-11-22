@@ -1,0 +1,143 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background-image: url('https://i.postimg.cc/gk1NwFXH/golf_lorette_2_octobre2005_033.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(243, 244, 246, 0.85);
+    z-index: -1;
+}
+
+.modal {
+    display: none;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.game-history-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.game-history-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.game-history-list::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.game-history-list::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.admin-only {
+    display: none;
+}
+
+body.logged-in .admin-only {
+    display: block;
+}
+
+/* Style pour la barre de progression de suppression */
+.delete-player-btn {
+    position: relative;
+    /* Nécessaire pour la barre de progression absolue */
+    overflow: hidden;
+    /* Cache la barre de progression qui dépasse */
+}
+
+.delete-player-btn .delete-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0;
+    /* Commence à 0 */
+    background-color: rgba(0, 0, 0, 0.3);
+    transition: none;
+    /* La transition est gérée par JS */
+    pointer-events: none;
+    /* N'intercepte pas les clics */
+}
+
+/* Style pour l'icône d'avertissement */
+.warning-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.warning-tooltip .tooltip-text {
+    visibility: hidden;
+    width: 180px;
+    /* Légèrement plus large */
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px 0;
+    position: absolute;
+    z-index: 10;
+    /* Augmenté pour être sûr qu'il passe au-dessus */
+    bottom: 130%;
+    /* Positionne un peu plus haut */
+    left: 50%;
+    margin-left: -90px;
+    /* Moitié de la largeur */
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.75rem;
+    /* text-xs */
+}
+
+.warning-tooltip .tooltip-text::after {
+    /* Flèche */
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #555 transparent transparent transparent;
+}
+
+.warning-tooltip:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Style simple pour message de confirmation */
+#copyConfirmationMessage {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(40, 167, 69, 0.9);
+    /* Vert semi-transparent */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    z-index: 100;
+    opacity: 0;
+    transition: opacity 0.5s ease-out;
+    pointer-events: none;
+    /* N'interfère pas avec les clics */
+}
+
+#copyConfirmationMessage.show {
+    opacity: 1;
+}

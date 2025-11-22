@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>MGM – Clone Firestore Prod → Dev</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 900px;
+      width: 100%;
+      padding: 24px;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 0.5rem;
+    }
+    h2 {
+      font-size: 1.2rem;
+      margin-top: 1.5rem;
+    }
+    .card {
+      background: #020617;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      border: 1px solid #1f2937;
+      margin-bottom: 16px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .col {
+      flex: 1 1 260px;
+    }
+    .label {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .value {
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-right: 8px;
+      margin-top: 8px;
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+      box-shadow: 0 5px 20px rgba(34,197,94,0.4);
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.2s;
+    }
+    button.secondary {
+      background: #0ea5e9;
+      color: #0b1120;
+      box-shadow: 0 5px 20px rgba(14,165,233,0.4);
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      background: #020617;
+      color: #e5e7eb;
+      border-radius: 10px;
+      border: 1px solid #1f2937;
+      padding: 10px;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.85rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .badge-prod {
+      background: #f97316;
+      color: #1b1307;
+    }
+    .badge-dev {
+      background: #22c55e;
+      color: #022c22;
+    }
+    .collections {
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+    .warning {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: #fbbf24;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MGM – Outil de copie Firestore <span class="badge badge-prod">Prod</span> → <span class="badge badge-dev">Dev</span></h1>
+    <p style="font-size:0.9rem;color:#9ca3af;margin-bottom:16px;">
+      Cet outil lit <strong>uniquement</strong> dans la base <span class="badge badge-prod">prod</span> et écrit dans la base <span class="badge badge-dev">dev</span>.<br>
+      Aucune écriture n'est faite dans la base de production.
+    </p>
+
+    <div class="card row">
+      <div class="col">
+        <h2>Configuration PROD</h2>
+        <div class="label">projectId</div>
+        <div class="value">statgolfv2</div>
+        <div class="label">authDomain</div>
+        <div class="value">statgolfv2.firebaseapp.com</div>
+        <div class="label">storageBucket</div>
+        <div class="value">statgolfv2.firebasestorage.app</div>
+      </div>
+      <div class="col">
+        <h2>Configuration DEV</h2>
+        <div class="label">projectId</div>
+        <div class="value">mgm-hivers-dev</div>
+        <div class="label">authDomain</div>
+        <div class="value">mgm-hivers-dev.firebaseapp.com</div>
+        <div class="label">storageBucket</div>
+        <div class="value">mgm-hivers-dev.firebasestorage.app</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Collections à copier</h2>
+      <p class="collections">
+        - <code>gameLists</code><br>
+        - <code>players</code><br>
+        - <code>settings</code>
+      </p>
+      <p class="warning">
+        ⚠ Aucun reset de la base dev : les documents sont créés ou mis à jour (merge) côté dev.
+      </p>
+      <div>
+        <button id="testConnectionsBtn" class="secondary">Tester les connexions</button>
+        <button id="runCopyBtn">Copier les données (Prod → Dev)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Journal des opérations</h2>
+      <textarea id="logArea" readonly></textarea>
+    </div>
+  </div>
+
+  <script type="module">
+    // --- Imports Firebase (modulaire, via CDN officiel) ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      doc,
+      setDoc
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import {
+      getAuth,
+      signInAnonymously
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+    // --- CONFIG PROD (LECTURE UNIQUEMENT) ---
+    const firebaseConfigProd = {
+      apiKey: "AIzaSyC0ZHX83YQ3jpiFAx1wtkOPiwRNqsE9Npw",
+      authDomain: "statgolfv2.firebaseapp.com",
+      projectId: "statgolfv2",
+      storageBucket: "statgolfv2.firebasestorage.app",
+      messagingSenderId: "127072359585",
+      appId: "1:127072359585:web:9c37f6ff0d40c0e07b4ce0"
+    };
+
+    // --- CONFIG DEV (ÉCRITURE AUTORISÉE) ---
+    const firebaseConfigDev = {
+      apiKey: "AIzaSyDX1UFMBssUcrTS6zfFdaJ6oldrPnkj9vI",
+      authDomain: "mgm-hivers-dev.firebaseapp.com",
+      projectId: "mgm-hivers-dev",
+      storageBucket: "mgm-hivers-dev.firebasestorage.app",
+      messagingSenderId: "90366576232",
+      appId: "1:90366576232:web:9ffaad59b68a9db4eb5ddd"
+    };
+
+    // --- Initialisation des deux apps ---
+    const prodApp = initializeApp(firebaseConfigProd, "prod-app");
+    const devApp  = initializeApp(firebaseConfigDev,  "dev-app");
+
+    const prodDb = getFirestore(prodApp);
+    const devDb  = getFirestore(devApp);
+
+    const prodAuth = getAuth(prodApp);
+    const devAuth  = getAuth(devApp);
+
+    const collectionsToCopy = ["gameLists", "players", "settings"];
+
+    const logArea = document.getElementById("logArea");
+    const testBtn = document.getElementById("testConnectionsBtn");
+    const runBtn  = document.getElementById("runCopyBtn");
+
+    function log(message) {
+      const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
+      logArea.value += `[${timestamp}] ${message}\n`;
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    async function ensureSignedIn(auth, label) {
+      try {
+        if (auth.currentUser) {
+          return;
+        }
+        log(`Connexion anonyme ${label} en cours...`);
+        await signInAnonymously(auth);
+        const uid = auth.currentUser ? auth.currentUser.uid : "?";
+        log(`✅ Connexion anonyme ${label} OK (uid: ${uid})`);
+      } catch (error) {
+        console.error(error);
+        log(`❌ Erreur connexion anonyme ${label} : ${error.message || error}`);
+        throw error;
+      }
+    }
+
+    async function testConnections() {
+      log("Test des connexions en cours...");
+      testBtn.disabled = true;
+
+      try {
+        // Auth d'abord
+        await ensureSignedIn(prodAuth, "PROD");
+        await ensureSignedIn(devAuth,  "DEV");
+
+        // Simple requête sur une collection pour vérifier l'accès
+        log("• Test lecture PROD (players)...");
+        await getDocs(collection(prodDb, "players"));
+        log("✅ Lecture PROD OK");
+
+        log("• Test écriture DEV (connectionTests/test-connection)…");
+        const testDocRef = doc(devDb, "connectionTests", "test-connection");
+        await setDoc(testDocRef, { testedAt: new Date().toISOString() }, { merge: true });
+        log("✅ Écriture DEV OK (connectionTests/test-connection)");
+
+        log("✔ Connexions Prod/Dev fonctionnelles.");
+      } catch (error) {
+        console.error(error);
+        log("❌ Erreur lors du test de connexion : " + (error.message || error));
+      } finally {
+        testBtn.disabled = false;
+      }
+    }
+
+    async function copyCollectionOnce(collectionName) {
+      log(`\n--- Copie de la collection "${collectionName}" ---`);
+      try {
+        const sourceColRef = collection(prodDb, collectionName);
+        const snapshot = await getDocs(sourceColRef);
+
+        if (snapshot.empty) {
+          log(`(info) Aucun document trouvé dans "${collectionName}" côté PROD.`);
+          return;
+        }
+
+        log(`• ${snapshot.size} document(s) trouvé(s) dans "${collectionName}" (PROD).`);
+
+        let count = 0;
+        for (const docSnap of snapshot.docs) {
+          const data = docSnap.data();
+
+          // IMPORTANT : écriture uniquement dans DEV.
+          const targetDocRef = doc(devDb, collectionName, docSnap.id);
+          await setDoc(targetDocRef, data, { merge: true });
+          count++;
+          if (count % 10 === 0) {
+            log(`  - ${count} documents copiés dans "${collectionName}"...`);
+          }
+        }
+
+        log(`✅ Copie terminée pour "${collectionName}" : ${count} document(s) copié(s)/mis à jour dans DEV.`);
+      } catch (error) {
+        console.error(error);
+        log(`❌ Erreur lors de la copie de "${collectionName}" : ${error.message || error}`);
+      }
+    }
+
+    async function runCopy() {
+      if (!confirm("Confirmer la copie de PROD vers DEV ?\nAucune suppression ne sera faite côté DEV, seulement créations/mises à jour.")) {
+        return;
+      }
+
+      runBtn.disabled = true;
+      testBtn.disabled = true;
+      log("\n=======================");
+      log("DÉBUT DE LA COPIE PROD → DEV");
+      log("=======================\n");
+
+      try {
+        // Auth avant de lancer la boucle
+        await ensureSignedIn(prodAuth, "PROD");
+        await ensureSignedIn(devAuth,  "DEV");
+
+        for (const colName of collectionsToCopy) {
+          await copyCollectionOnce(colName);
+        }
+        log("\n✔ Tous les traitements sont terminés.");
+      } catch (error) {
+        console.error(error);
+        log("❌ Erreur générale lors de la copie : " + (error.message || error));
+      } finally {
+        runBtn.disabled = false;
+        testBtn.disabled = false;
+      }
+    }
+
+    testBtn.addEventListener("click", testConnections);
+    runBtn.addEventListener("click", runCopy);
+
+    // Log initial
+    log("Outil prêt. Vous pouvez tester les connexions puis lancer la copie.");
+  </script>
+</body>
+</html>

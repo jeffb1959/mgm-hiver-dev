@@ -1,0 +1,178 @@
+<!--
+  MGM - Suivi de golf intérieur
+  Fichier : accueil.html
+  Version : 2.1.0 (DEV)
+  Date    : 2025-11-21
+  Notes   :
+    - Page d'accueil simplifiée
+    - Boutons : Voir équipes, Statistiques, Choisir votre nom, Admin
+    - Modale "Équipes de la Semaine Prochaine" (sans bouton Copier pour Sheets)
+-->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MGM – Accueil</title>
+
+  <!-- Tailwind + police -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles personnalisés (fond, modales, etc.) -->
+  <link rel="stylesheet" href="mgm.css">
+</head>
+<body class="text-gray-800">
+
+  <div class="container mx-auto p-4 md:p-8 relative">
+    <!-- En-tête -->
+    <header class="text-center mb-10">
+      <h1 class="text-4xl font-bold text-green-700">Statistiques de Golf</h1>
+      <p class="text-lg text-gray-600 mt-2">Suivez les performances de votre ligue</p>
+      <p class="text-sm text-gray-500 mt-1">(Mode accueil simplifié – base DEV)</p>
+    </header>
+
+    <!-- Zone centrale de choix -->
+    <main class="max-w-xl mx-auto bg-white/90 backdrop-blur rounded-2xl shadow-2xl p-6 md:p-8">
+      <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">
+        Que voulez-vous faire ?
+      </h2>
+
+      <div class="space-y-6">
+        <!-- BOUTON PRÉSENCE -->
+        <section>
+          <p class="text-sm text-gray-600 mb-3">
+            Indiquez rapidement votre présence pour la prochaine partie.
+          </p>
+          <button
+            id="presenceBtn"
+            class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg">
+            Présence – prochaine partie
+          </button>
+        </section>
+
+        <hr class="border-gray-200">
+
+        <!-- 1. Voir équipes -->
+        <section>
+           <!-- <h3 class="text-lg font-semibold text-gray-800 mb-2">Voir les équipes</h3> -->
+          <p class="text-sm text-gray-600 mb-3">
+            Afficher les équipes sauvegardées pour la prochaine semaine.
+          </p>
+          <button
+            id="viewTeamsBtn"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg">
+            Voir les équipes
+          </button>
+        </section>
+
+        <hr class="border-gray-200">
+
+    
+
+        <!-- 3. Choisir votre nom -->
+        <section>
+          <h3 class="text-lg font-semibold text-gray-800 mb-2">Choisir votre nom</h3>
+          <p class="text-sm text-gray-600 mb-3">
+            Sélectionnez votre nom pour accéder à votre fiche personnelle.
+          </p>
+
+          <div class="space-y-3">
+            <select
+              id="playerSelect"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white">
+              <option value="">-- Sélectionnez votre nom --</option>
+            </select>
+
+            <button
+              id="viewPlayerBtn"
+              class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-lg disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled>
+              Voir ma fiche
+            </button>
+
+            <!-- <p id="playerSelectHint" class="text-xs text-gray-500">
+              Les noms sont chargés depuis la base de données (environnement DEV).
+            </p> -->
+          </div>
+        </section>
+
+        <hr class="border-gray-200">
+
+    <!-- 2. Statistiques (à développer plus tard) -->
+        <section>
+          <!-- <h3 class="text-lg font-semibold text-gray-800 mb-2">Statistiques</h3> -->
+          <p class="text-sm text-gray-600 mb-3">
+            Accéder à des statistiques détaillées des joueurs et de la ligue.
+          </p>
+          <button
+            id="statsBtn"
+            class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg">
+            Statistiques (à venir)
+          </button>
+        </section>
+
+        <hr class="border-gray-200">
+
+        <!-- 4. Admin -->
+        <section>
+          <!-- <h3 class="text-lg font-semibold text-gray-800 mb-2">Administration</h3>
+          <p class="text-sm text-gray-600 mb-3">
+            Accéder aux outils d'administration (ajout de joueurs, équipes, avances, etc.).
+          </p> -->
+          <button
+            id="adminBtn"
+            class="w-full bg-gray-800 hover:bg-black text-white font-bold py-2.5 px-4 rounded-lg shadow-lg">
+            Admin
+          </button>
+        </section>
+      </div>
+    </main>
+
+    <footer class="mt-8 text-center text-xs text-gray-500">
+      MGM – Version 2.1.0 (DEV) – Accueil simplifié
+    </footer>
+  </div>
+
+  <!-- Modal Voir Équipes Sauvegardées (Accueil) -->
+  <div id="viewTeamsModal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-3xl">
+      <div class="flex justify-between items-start">
+        <h2 class="text-2xl font-bold mb-4">Équipes de la Semaine Prochaine</h2>
+        <button
+          type="button"
+          id="closeTeamsModal"
+          class="text-gray-500 hover:text-gray-800 text-2xl leading-none"
+        >
+          &times;
+        </button>
+      </div>
+
+      <p id="viewTeamsDate" class="text-sm text-gray-500 mb-4"></p>
+
+      <div
+        id="viewTeamsContainer"
+        class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-96 overflow-y-auto"
+      >
+        <p class="text-gray-500 text-center md:col-span-2">
+          Aucune équipe sauvegardée pour le moment.
+        </p>
+      </div>
+
+      <div class="flex justify-end items-center mt-6">
+        <button
+          type="button"
+          id="closeTeamsModalBottom"
+          class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-md"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script spécifique à la page d'accueil -->
+  <script type="module" src="accueil.js"></script>
+</body>
+</html>

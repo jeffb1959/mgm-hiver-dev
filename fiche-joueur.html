@@ -1,0 +1,91 @@
+<!--
+  MGM - Suivi de golf intérieur
+  Fichier : fiche-joueur.html
+  Version : 2.0.0 (DEV)
+  Date    : 2025-11-21
+  Notes   :
+    - Affiche une seule fiche de joueur
+    - Informations et comportements identiques à la carte joueur existante
+    - Données provenant de la base DEV (mgm-hivers-dev)
+-->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MGM – Fiche joueur</title>
+
+  <!-- Tailwind + police -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles personnalisés existants -->
+  <link rel="stylesheet" href="mgm.css">
+</head>
+<body class="text-gray-800">
+  <div class="container mx-auto p-4 md:p-8 relative">
+    <!-- En-tête -->
+    <header class="text-center mb-8">
+      <h1 class="text-3xl md:text-4xl font-bold text-green-700">Statistiques de Golf</h1>
+      <p class="text-base md:text-lg text-gray-600 mt-2">Fiche de joueur</p>
+      <p class="text-xs text-gray-500 mt-1">(Version DEV – fiche individuelle)</p>
+    </header>
+
+    <!-- Contenu principal : une seule carte joueur -->
+    <main class="max-w-md mx-auto">
+      <div id="playerCardContainer">
+        <!-- La carte du joueur sera injectée ici par main.js -->
+        <div class="bg-white/80 rounded-xl shadow-md p-6 text-center text-gray-500 text-sm">
+          Chargement de la fiche joueur…
+        </div>
+      </div>
+
+      <!-- Bouton retour accueil -->
+      <div class="mt-6 text-center">
+        <a href="accueil.html"
+           class="inline-flex items-center justify-center px-4 py-2 rounded-lg border border-gray-300 bg-white/80 text-sm font-medium text-gray-700 hover:bg-gray-100 shadow-sm">
+          ← Retour à l'accueil
+        </a>
+      </div>
+    </main>
+
+    <!-- Modale "Voir Parties" -->
+    <div id="viewGamesModal" class="modal">
+      <div class="modal-content bg-white rounded-2xl shadow-2xl max-w-2xl w-full mx-4 md:mx-auto p-6 relative">
+        <div class="flex justify-between items-start mb-4">
+          <div>
+            <h2 class="text-xl font-bold text-gray-900">
+              Parties de <span id="historyPlayerName"></span>
+            </h2>
+            <p class="text-sm text-gray-600">
+              Handicap de départ : <span id="historyPlayerHandicap"></span>
+            </p>
+          </div>
+          <button id="closeViewGamesModal"
+                  class="text-gray-500 hover:text-gray-800 text-sm font-semibold">
+            Fermer ✕
+          </button>
+        </div>
+
+        <div id="gameHistoryContainer"
+             class="game-history-list space-y-3 max-h-80 overflow-y-auto">
+          <!-- Liste des parties injectée par main.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Message d'erreur global -->
+    <div id="globalErrorMessage"
+         class="hidden mt-6 max-w-md mx-auto bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+    </div>
+
+    <footer class="mt-8 text-center text-xs text-gray-500">
+      MGM – Version 2.0.0 (DEV) – fiche-joueur.html
+    </footer>
+  </div>
+
+  <!-- Script spécifique fiche joueur -->
+  <script type="module" src="main.js"></script>
+</body>
+</html>
