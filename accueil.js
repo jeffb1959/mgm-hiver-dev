@@ -76,12 +76,12 @@ function setupUIEvents() {
     });
   }
 
-  // Statistiques (placeholder)
-  if (statsBtn) {
-    statsBtn.addEventListener("click", () => {
-      alert("La section Statistiques sera développée dans une prochaine étape.");
-    });
-  }
+// Statistiques -> redirection vers statistic.html
+if (statsBtn) {
+  statsBtn.addEventListener("click", () => {
+    window.location.href = "statistic.html";
+  });
+}
 
     // Admin -> demande mot de passe une seule fois, puis accès direct
   if (adminBtn) {
