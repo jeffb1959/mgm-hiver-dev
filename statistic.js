@@ -1,8 +1,8 @@
 // ======================================================
 // MGM - Suivi de golf intérieur
 // Fichier : statistic.js
-// Version : 2.0.0 (DEV)
-// Rôle    : Statistiques globales de la ligue
+// Version : 2.2.0 (DEV)
+// Rôle    : Statistiques globales de la ligue + graphique handicap
 // Base    : mgm-hivers-dev (DEV)
 // ======================================================
 
@@ -29,6 +29,11 @@ const firebaseConfig = {
 let app, db, auth;
 let players = [];
 
+// Pour le graphique de progression de l'handicap
+let handicapChart = null;
+let playerSelect = null;
+let loadGraphBtn = null;
+
 // --------------------------------------------------
 // Initialisation
 // --------------------------------------------------
@@ -41,6 +46,7 @@ async function init() {
     await signInAnonymously(auth);
 
     setupTabsUI();
+    setupGraphUI();      // initialisation UI du graphique
     subscribePlayers();
   } catch (error) {
     console.error("Erreur d'initialisation des statistiques :", error);
@@ -51,21 +57,34 @@ async function init() {
 // --------------------------------------------------
 // Calcul du handicap (même logique que mgm.js)
 // --------------------------------------------------
-function calculateHandicap(player) {
-  if (!player || player.name?.startsWith("Dummy") || typeof player.startingHandicap === "undefined") {
-    return 0;
-  }
-  const scores = (player.games || []).map((g) => g.score);
+function calculateHandicapFromScores(scores, startingHandicap) {
+  if (!Array.isArray(scores)) scores = [];
+  const hasStart = typeof startingHandicap === "number";
+  if (!hasStart && scores.length === 0) return 0;
+
   if (scores.length < 6) {
-    const allScores = [...scores, player.startingHandicap];
-    if (allScores.length === 0) return player.startingHandicap;
+    const allScores = hasStart ? [...scores, startingHandicap] : [...scores];
+    if (allScores.length === 0) return hasStart ? startingHandicap : 0;
     return allScores.reduce((a, b) => a + b, 0) / allScores.length;
   }
+
   const relevantScores = scores.length > 10 ? scores.slice(-10) : [...scores];
   relevantScores.sort((a, b) => a - b);
   const best5 = relevantScores.slice(0, 5);
-  if (best5.length === 0) return player.startingHandicap;
-  return best5.reduce((a, b) => a + b, 0) / 5;
+  if (best5.length === 0) return hasStart ? startingHandicap : 0;
+  return best5.reduce((a, b) => a + b, 0) / best5.length;
+}
+
+function calculateHandicap(player) {
+  if (
+    !player ||
+    player.name?.startsWith("Dummy") ||
+    typeof player.startingHandicap === "undefined"
+  ) {
+    return 0;
+  }
+  const scores = (player.games || []).map((g) => g.score);
+  return calculateHandicapFromScores(scores, player.startingHandicap);
 }
 
 // --------------------------------------------------
@@ -82,6 +101,7 @@ function subscribePlayers() {
         ...docSnap.data()
       }));
       updateAllTables();
+      populatePlayerSelect(); // maj de la liste déroulante pour le graphique
     },
     (error) => {
       console.error("Erreur lors de la lecture des joueurs :", error);
@@ -345,6 +365,132 @@ function setupTabsUI() {
       btn.classList.remove("bg-gray-200", "text-gray-800");
       btn.classList.add("bg-indigo-600", "text-white");
     });
+  });
+}
+
+// --------------------------------------------------
+// UI : graphique de progression de l'handicap
+// --------------------------------------------------
+function setupGraphUI() {
+  playerSelect = document.getElementById("playerSelect");
+  loadGraphBtn = document.getElementById("loadGraphBtn");
+
+  if (loadGraphBtn) {
+    loadGraphBtn.addEventListener("click", () => {
+      const playerId = playerSelect?.value;
+      if (!playerId) {
+        alert("Veuillez sélectionner un joueur.");
+        return;
+      }
+      handleLoadHandicapGraph(playerId);
+    });
+  }
+}
+
+function populatePlayerSelect() {
+  if (!playerSelect) return;
+
+  const previous = playerSelect.value;
+
+  // Réinitialiser la liste
+  playerSelect.innerHTML = '<option value="">-- Sélectionnez un joueur --</option>';
+
+  const sorted = [...players]
+    .filter((p) => !p.name?.startsWith("Dummy"))
+    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  sorted.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name || "Sans nom";
+    playerSelect.appendChild(opt);
+  });
+
+  // Si un joueur était déjà sélectionné, on essaie de le conserver
+  if (previous) {
+    playerSelect.value = previous;
+  }
+}
+
+// Construit l'historique d'handicap à partir des parties du joueur
+function buildHandicapHistoryForPlayer(playerId) {
+  const player = players.find((p) => p.id === playerId);
+  if (!player) return [];
+
+  const gamesSorted = (player.games || [])
+    .filter((g) => g.date && typeof g.score === "number")
+    .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+  const scoresSoFar = [];
+  const history = [];
+
+  gamesSorted.forEach((g) => {
+    scoresSoFar.push(g.score);
+    const hcp = calculateHandicapFromScores(scoresSoFar, player.startingHandicap);
+    history.push({
+      date: g.date,
+      handicap: hcp
+    });
+  });
+
+  return history;
+}
+
+function handleLoadHandicapGraph(playerId) {
+  const player = players.find((p) => p.id === playerId);
+  if (!player) {
+    alert("Joueur introuvable.");
+    return;
+  }
+
+  const history = buildHandicapHistoryForPlayer(playerId);
+  if (!history.length) {
+    alert("Aucune donnée de handicap trouvée pour ce joueur.");
+    return;
+  }
+
+  renderHandicapGraph(history, player.name || "Joueur");
+}
+
+function renderHandicapGraph(history, playerName) {
+  const canvas = document.getElementById("handicapChart");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
+  if (handicapChart) {
+    handicapChart.destroy();
+  }
+
+  // Chart est fourni par le script Chart.js dans statistic.html
+  handicapChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: history.map((h) => h.date),
+      datasets: [
+        {
+          label: `Handicap - ${playerName}`,
+          data: history.map((h) => h.handicap),
+          borderWidth: 3,
+          borderColor: "#2563eb",
+          backgroundColor: "rgba(37, 99, 235, 0.15)",
+          tension: 0.25,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true }
+      },
+      scales: {
+        y: {
+          beginAtZero: false
+        }
+      }
+    }
   });
 }
 

@@ -167,9 +167,32 @@
           </table>
         </div>
       </section>
-    </main>
-  </div>
+    
+      
+        <section class="my-8 p-6 bg-white rounded-lg shadow">
+            <h2 class="text-2xl font-bold text-center mb-4">
+                Progression de l'handicap
+            </h2>
 
+            <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+                <select id="playerSelect" class="border border-gray-300 p-2 rounded w-64">
+                    <option value="">-- Sélectionnez un joueur --</option>
+                </select>
+
+                <button id="loadGraphBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                    Afficher progression
+                </button>
+            </div>
+
+            <div class="mt-6">
+                <canvas id="handicapChart" height="120"></canvas>
+            </div>
+        </section>
+
+        <!-- ChartJS -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      </main>
+    </div>
   <!-- JS -->
   <script type="module" src="statistic.js"></script>
 </body>
