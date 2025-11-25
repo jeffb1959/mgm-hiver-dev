@@ -1,12 +1,15 @@
 // ======================================================
 // MGM - Suivi de golf intérieur
 // Fichier : presence.js
-// Version : 1.0.0 (DEV)
+// Version : 1.1.0 (DEV)
 // Rôle    : Page de gestion rapide de la présence des joueurs
 //           pour la prochaine partie (presence.html)
 // Base    : mgm-hivers-dev (Firebase DEV)
 // Champs  : utilise le même champ que le module d'équipes :
-//           players/{id}.nextWeekStatus = 'present' | 'absent'
+//           players/{id}.nextWeekStatus = 'present' | 'absent' | 'available'
+//           - 'present'   : joueur compté comme présent pour les équipes
+//           - 'available' : remplaçant disponible (mais pas encore utilisé)
+//           - 'absent'    : absent / non disponible
 // ======================================================
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -240,11 +243,88 @@ function renderPlayersPresence() {
   const cardsHtml = filtered
     .map((player) => {
       const playerType = player.playerType || "regular"; // 'regular' ou 'sub'
+      // Par défaut :
+      // - régulier : présent
+      // - remplaçant : non disponible (absent) tant qu'il n'a pas confirmé "Disponible"
       const defaultStatus = playerType === "regular" ? "present" : "absent";
       const currentStatus = player.nextWeekStatus || defaultStatus;
+
       const hc = calculateHandicap(player);
       const handicapText =
         typeof hc === "number" && !isNaN(hc) ? hc.toFixed(1) : "-";
+
+      // Radios différents selon le type de joueur
+      let radiosHtml = "";
+
+      if (playerType === "regular") {
+        // Joueur régulier : Présent / Absent
+        radiosHtml = `
+          <label class="flex items-center gap-1 text-xs md:text-sm">
+            <input
+              type="radio"
+              class="presence-radio"
+              name="presence-${player.id}"
+              value="present"
+              data-id="${player.id}"
+              data-type="regular"
+              ${currentStatus === "present" ? "checked" : ""}
+            />
+            Présent
+          </label>
+          <label class="flex items-center gap-1 text-xs md:text-sm">
+            <input
+              type="radio"
+              class="presence-radio"
+              name="presence-${player.id}"
+              value="absent"
+              data-id="${player.id}"
+              data-type="regular"
+              ${currentStatus === "absent" ? "checked" : ""}
+            />
+            Absent
+          </label>
+        `;
+      } else {
+        // Joueur remplaçant : Présent / Disponible / Non disponible
+        radiosHtml = `
+          <label class="flex items-center gap-1 text-xs md:text-sm">
+            <input
+              type="radio"
+              class="presence-radio"
+              name="presence-${player.id}"
+              value="present"
+              data-id="${player.id}"
+              data-type="sub"
+              ${currentStatus === "present" ? "checked" : ""}
+            />
+            Présent
+          </label>
+          <label class="flex items-center gap-1 text-xs md:text-sm">
+            <input
+              type="radio"
+              class="presence-radio"
+              name="presence-${player.id}"
+              value="available"
+              data-id="${player.id}"
+              data-type="sub"
+              ${currentStatus === "available" ? "checked" : ""}
+            />
+            Disponible
+          </label>
+          <label class="flex items-center gap-1 text-xs md:text-sm">
+            <input
+              type="radio"
+              class="presence-radio"
+              name="presence-${player.id}"
+              value="absent"
+              data-id="${player.id}"
+              data-type="sub"
+              ${currentStatus === "absent" ? "checked" : ""}
+            />
+            Non disponible
+          </label>
+        `;
+      }
 
       return `
         <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm">
@@ -255,28 +335,7 @@ function renderPlayersPresence() {
             </span>
           </div>
           <div class="flex items-center gap-3">
-            <label class="flex items-center gap-1 text-xs md:text-sm">
-              <input
-                type="radio"
-                class="presence-radio"
-                name="presence-${player.id}"
-                value="present"
-                data-id="${player.id}"
-                ${currentStatus === "present" ? "checked" : ""}
-              />
-              Présent
-            </label>
-            <label class="flex items-center gap-1 text-xs md:text-sm">
-              <input
-                type="radio"
-                class="presence-radio"
-                name="presence-${player.id}"
-                value="absent"
-                data-id="${player.id}"
-                ${currentStatus === "absent" ? "checked" : ""}
-              />
-              Absent
-            </label>
+            ${radiosHtml}
           </div>
         </div>
       `;
@@ -324,14 +383,14 @@ function setupUIEvents() {
   }
 
   if (playersPresenceContainer) {
-    // Délégation d'événements pour les radios Présent / Absent
+    // Délégation d'événements pour les radios
     playersPresenceContainer.addEventListener("change", (event) => {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
       if (!target.classList.contains("presence-radio")) return;
 
       const playerId = target.dataset.id;
-      const newStatus = target.value === "present" ? "present" : "absent";
+      const newStatus = target.value; // 'present' | 'absent' | 'available'
       if (!playerId || !newStatus) return;
 
       handleUpdatePresence(playerId, newStatus);

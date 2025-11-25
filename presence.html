@@ -1,7 +1,7 @@
 <!-- ======================================================
      MGM - Suivi de golf intérieur
      Fichier  : presence.html
-     Version  : 1.0.0 (DEV)
+     Version  : 1.1.0 (DEV)
      Rôle     : Gestion rapide de la présence des joueurs
                 pour la prochaine partie
      Base     : mgm-hivers-dev (Firebase DEV)
@@ -74,7 +74,18 @@
             </p>
             <ul class="list-disc list-inside space-y-1">
               <li>Repérez votre nom dans la liste ci-dessous.</li>
-              <li>Choisissez <span class="font-semibold">Présent</span> ou <span class="font-semibold">Absent</span> pour la date affichée.</li>
+              <li>
+                <span class="font-semibold">Joueurs réguliers</span> : choisissez
+                <span class="font-semibold">Présent</span> ou <span class="font-semibold">Absent</span>
+                pour la date affichée.
+              </li>
+              <li>
+                <span class="font-semibold">Joueurs remplaçants</span> :
+                <span class="font-semibold">Disponible</span> signifie que vous êtes libre pour remplacer,
+                <span class="font-semibold">Non disponible</span> que vous ne pouvez pas jouer.
+                Le statut <span class="font-semibold">Présent</span> est utilisé par l'administrateur
+                lorsqu'un remplaçant est officiellement ajouté aux équipes.
+              </li>
               <li>La mise à jour est enregistrée automatiquement dès que vous changez l'option.</li>
             </ul>
           </div>
@@ -100,25 +111,7 @@
             id="playersPresenceContainer"
             class="space-y-2 md:space-y-3 max-h-[65vh] overflow-y-auto pr-1"
           >
-            <!-- Exemples de carte (sera généré par presence.js) -->
-            <!--
-            <div class="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm">
-              <div class="flex flex-col">
-                <span class="font-semibold text-gray-900">Nom du joueur</span>
-                <span class="text-xs text-gray-500">Handicap: 12.4</span>
-              </div>
-              <div class="flex items-center gap-3">
-                <label class="flex items-center gap-1 text-xs md:text-sm">
-                  <input type="radio" name="presence-PLAYER_ID" value="present" class="presence-radio" />
-                  Présent
-                </label>
-                <label class="flex items-center gap-1 text-xs md:text-sm">
-                  <input type="radio" name="presence-PLAYER_ID" value="absent" class="presence-radio" />
-                  Absent
-                </label>
-              </div>
-            </div>
-            -->
+            <!-- cartes générées par presence.js -->
           </div>
         </section>
 
