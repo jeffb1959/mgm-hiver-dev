@@ -6,12 +6,15 @@
 // Base    : mgm-hivers-dev (DEV)
 // ======================================================
 
+import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import {
   getFirestore,
   collection,
-  onSnapshot
+  onSnapshot,
+  doc,
+  getDoc
 } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // --------------------------------------------------
@@ -26,13 +29,16 @@ const firebaseConfig = {
   appId: "1:90366576232:web:9ffaad59b68a9db4eb5ddd"
 };
 
-let app, db, auth;
+let app, db, auth, storage;
 let players = [];
 
 // Pour le graphique de progression de l'handicap
 let handicapChart = null;
 let playerSelect = null;
 let loadGraphBtn = null;
+// Pour le bouton "Voir la dernière carte de pointage"
+let viewLastScorecardBtn = null;
+let lastScorecardUrl = null;
 
 // --------------------------------------------------
 // Utilitaires math
@@ -57,11 +63,13 @@ async function init() {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app);       // <--- AJOUT
 
     await signInAnonymously(auth);
 
     setupTabsUI();
     setupGraphUI();      // initialisation UI du graphique
+    setupLastScorecardUI();   // <--- AJOUT
     subscribePlayers();
   } catch (error) {
     console.error("Erreur d'initialisation des statistiques :", error);
@@ -357,12 +365,18 @@ function renderLastGameTables(playersData) {
     if (lastGameInfo) {
       lastGameInfo.textContent = "Dernière partie connue : aucune partie pour l’instant.";
     }
+
+    // Pas de partie => pas de carte de pointage
+    updateLastScorecardButton(null);
     return;
   }
 
   if (lastGameInfo) {
     lastGameInfo.textContent = `Dernière partie connue : ${lastDateStr}`;
   }
+
+  // Tente de récupérer la carte de pointage de cette date
+  updateLastScorecardButton(lastDateStr);
 
   // Récupérer toutes les parties de cette date
   const lastGames = [];
@@ -438,6 +452,34 @@ function renderLastGameTables(playersData) {
     })
     .join("");
 }
+
+async function updateLastScorecardButton(dateStr) {
+  if (!viewLastScorecardBtn) return;
+
+  // Réinitialise l'état par défaut
+  lastScorecardUrl = null;
+  viewLastScorecardBtn.classList.add("hidden");
+
+  if (!dateStr || !storage) return;
+
+  try {
+    // On suppose que le fichier dans Storage s'appelle "YYYY-MM-DD.pdf"
+    const pdfRef = ref(storage, `scorecards/${dateStr}.pdf`);
+    const url = await getDownloadURL(pdfRef);
+
+    // Si on arrive ici, le fichier existe et l'URL est valide
+    lastScorecardUrl = url;
+    viewLastScorecardBtn.classList.remove("hidden");
+  } catch (error) {
+    // Si le fichier n'existe pas, on garde le bouton caché sans alerter
+    if (error.code !== "storage/object-not-found") {
+      console.error("Erreur lors de la récupération de la carte de pointage :", error);
+    }
+    // lastScorecardUrl reste null, bouton caché
+  }
+}
+
+
 
 // --------- Tableau 5 : Tendance des scores ----------
 function renderTrendTable(playersData) {
@@ -624,6 +666,22 @@ function setupGraphUI() {
     });
   }
 }
+
+function setupLastScorecardUI() {
+  viewLastScorecardBtn = document.getElementById("viewLastScorecardBtn");
+
+  if (!viewLastScorecardBtn) return;
+
+  viewLastScorecardBtn.addEventListener("click", () => {
+    if (!lastScorecardUrl) {
+      alert("Aucune carte de pointage n'est disponible pour la dernière partie.");
+      return;
+    }
+    // Ouvre le PDF dans un nouvel onglet
+    window.open(lastScorecardUrl, "_blank");
+  });
+}
+
 
 function populatePlayerSelect() {
   if (!playerSelect) return;
