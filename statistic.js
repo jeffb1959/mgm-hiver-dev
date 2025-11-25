@@ -1,7 +1,7 @@
 // ======================================================
 // MGM - Suivi de golf intérieur
 // Fichier : statistic.js
-// Version : 2.2.0 (DEV)
+// Version : 2.3.0 (DEV)
 // Rôle    : Statistiques globales de la ligue + graphique handicap
 // Base    : mgm-hivers-dev (DEV)
 // ======================================================
@@ -35,6 +35,21 @@ let playerSelect = null;
 let loadGraphBtn = null;
 
 // --------------------------------------------------
+// Utilitaires math
+// --------------------------------------------------
+function safeAvg(arr) {
+  if (!arr || !arr.length) return null;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+function safeStdDev(arr) {
+  if (!arr || arr.length < 2) return null;
+  const avg = safeAvg(arr);
+  const variance = arr.reduce((sum, v) => sum + Math.pow(v - avg, 2), 0) / arr.length;
+  return Math.sqrt(variance);
+}
+
+// --------------------------------------------------
 // Initialisation
 // --------------------------------------------------
 async function init() {
@@ -55,7 +70,7 @@ async function init() {
 }
 
 // --------------------------------------------------
-// Calcul du handicap (même logique que mgm.js)
+// Calcul du handicap (même logique que l'app principale)
 // --------------------------------------------------
 function calculateHandicapFromScores(scores, startingHandicap) {
   if (!Array.isArray(scores)) scores = [];
@@ -123,30 +138,111 @@ function updateAllTables() {
   const enrichedPlayers = players
     .filter((p) => !p.name?.startsWith("Dummy"))
     .map((p) => {
-      const games = p.games || [];
+      const games = (p.games || []).filter((g) => typeof g.score === "number");
       const handicap = calculateHandicap(p);
       const totalWinnings = games.reduce((sum, g) => sum + (g.wager || 0), 0);
 
+      // Birdies / triples
+      const totalBirdies = games.reduce((sum, g) => sum + (g.birdies || 0), 0);
+      const totalTriples = games.reduce((sum, g) => sum + (g.triples || 0), 0);
+      const gamesCount = games.length;
+      const birdiesPerGame = gamesCount ? totalBirdies / gamesCount : 0;
+
+      // Parties triées par date
+      const gamesSorted = [...games].sort((a, b) =>
+        (a.date || "").localeCompare(b.date || "")
+      );
+
       // Dernière partie du joueur (par date string)
       let lastGame = null;
-      for (const g of games) {
+      for (const g of gamesSorted) {
         if (!g.date) continue;
         if (!lastGame || g.date > lastGame.date) {
           lastGame = g;
         }
       }
 
+      // Différentiel (score - handicap avant la partie) pour chaque partie
+      const diffs = [];
+      const scoresSoFar = [];
+      gamesSorted.forEach((g) => {
+        const hcpBefore = calculateHandicapFromScores(scoresSoFar, p.startingHandicap);
+        const d = g.score - hcpBefore;
+        diffs.push(d);
+        scoresSoFar.push(g.score);
+      });
+
+      const normalizedAvg = safeAvg(diffs);
+      const bestPerf = diffs.length ? Math.min(...diffs) : null;
+      const worstPerf = diffs.length ? Math.max(...diffs) : null;
+      const volatility = safeStdDev(diffs);
+
+      // Tendance : on compare la moyenne des 3 dernières parties
+      // avec la moyenne des 3 précédentes (si possible).
+      let trendDelta = null;
+      if (diffs.length >= 2) {
+        const last3 = diffs.slice(-3);
+        const prev3 =
+          diffs.length > 3 ? diffs.slice(-6, -3) : diffs.slice(0, diffs.length - 1);
+        const avgLast = safeAvg(last3);
+        const avgPrev = safeAvg(prev3);
+        if (avgLast !== null && avgPrev !== null) {
+          trendDelta = avgLast - avgPrev; // < 0 = amélioration
+        }
+      }
+
+      // Séries :
+      // - "Parties jouées" = total de parties dans la saison (info simple)
+      const totalGames = gamesSorted.length;
+
+      // - Série en amélioration : en partant de la fin, tant que diff[i] < diff[i-1]
+      let streakImproving = 0;
+      for (let i = diffs.length - 1; i > 0; i--) {
+        if (diffs[i] < diffs[i - 1]) {
+          streakImproving++;
+        } else {
+          break;
+        }
+      }
+
+      // - Série sous handicap : en partant de la fin, tant que diff <= 0
+      let streakUnderHcp = 0;
+      for (let i = diffs.length - 1; i >= 0; i--) {
+        if (diffs[i] <= 0) {
+          streakUnderHcp++;
+        } else {
+          break;
+        }
+      }
+
       return {
         ...p,
+        games: gamesSorted,
         handicap,
         totalWinnings,
-        lastGame
+        lastGame,
+        totalBirdies,
+        totalTriples,
+        birdiesPerGame,
+        diffs,
+        normalizedAvg,
+        bestPerf,
+        worstPerf,
+        volatility,
+        trendDelta,
+        totalGames,
+        streakImproving,
+        streakUnderHcp
       };
     });
 
   renderHandicapTable(enrichedPlayers);
   renderWinningsTable(enrichedPlayers);
   renderLastGameTables(enrichedPlayers);
+  renderTrendTable(enrichedPlayers);
+  renderBirdiesTable(enrichedPlayers);
+  renderNormalizedTable(enrichedPlayers);
+  renderStreaksTable(enrichedPlayers);
 }
 
 function renderEmptyTables() {
@@ -154,7 +250,11 @@ function renderEmptyTables() {
     "handicapTableBody",
     "winningsTableBody",
     "lastScoresTableBody",
-    "lastNetTableBody"
+    "lastNetTableBody",
+    "trendTableBody",
+    "birdiesTableBody",
+    "normalizedTableBody",
+    "streaksTableBody"
   ];
   bodies.forEach((id) => {
     const tbody = document.getElementById(id);
@@ -185,13 +285,12 @@ function renderHandicapTable(playersData) {
 
   tbody.innerHTML = sorted
     .map((p, index) => {
-      const gamesCount = (p.games || []).length;
       return `
         <tr>
           <td class="px-3 py-2 border text-gray-600">${index + 1}</td>
           <td class="px-3 py-2 border font-medium">${p.name}</td>
           <td class="px-3 py-2 border text-right">${p.handicap.toFixed(1)}</td>
-          <td class="px-3 py-2 border text-right">${gamesCount}</td>
+          <td class="px-3 py-2 border text-right">${p.totalGames}</td>
         </tr>
       `;
     })
@@ -307,7 +406,7 @@ function renderLastGameTables(playersData) {
     })
     .join("");
 
-  // Tableau 4 : Score vs handicap
+  // Tableau 4 : Score vs handicap (utilise handicap actuel)
   const sortedByNet = [...lastGames]
     .map((entry) => {
       const { player, game } = entry;
@@ -334,6 +433,145 @@ function renderLastGameTables(playersData) {
           <td class="px-3 py-2 border text-right">${player.handicap.toFixed(1)}</td>
           <td class="px-3 py-2 border text-right ${css}">${diffText}</td>
           <td class="px-3 py-2 border">${lastDateStr}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// --------- Tableau 5 : Tendance des scores ----------
+function renderTrendTable(playersData) {
+  const tbody = document.getElementById("trendTableBody");
+  if (!tbody) return;
+
+  // On ne garde que les joueurs ayant au moins 2 parties (sinon pas de tendance)
+  const withTrend = playersData.filter(
+    (p) => p.diffs && p.diffs.length >= 2 && p.trendDelta !== null
+  );
+
+  if (!withTrend.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="4" class="px-3 py-2 text-center text-gray-500">Pas assez de données pour calculer une tendance.</td></tr>';
+    return;
+  }
+
+  const sorted = [...withTrend].sort((a, b) => (a.trendDelta || 0) - (b.trendDelta || 0));
+
+  tbody.innerHTML = sorted
+    .map((p, index) => {
+      const delta = p.trendDelta ?? 0;
+      const deltaText = `${delta > 0 ? "+" : ""}${delta.toFixed(2)}`;
+      let comment = "Stable";
+      if (delta < -0.5) comment = "En forte amélioration";
+      else if (delta < 0) comment = "En légère amélioration";
+      else if (delta > 0.5) comment = "Détérioration";
+
+      const css =
+        delta < 0 ? "text-green-600 font-semibold" : delta > 0 ? "text-red-600 font-semibold" : "";
+
+      return `
+        <tr>
+          <td class="px-3 py-2 border text-gray-600">${index + 1}</td>
+          <td class="px-3 py-2 border font-medium">${p.name}</td>
+          <td class="px-3 py-2 border text-right ${css}">${deltaText}</td>
+          <td class="px-3 py-2 border">${comment}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// --------- Tableau 6 : Birdies / Triples ----------
+function renderBirdiesTable(playersData) {
+  const tbody = document.getElementById("birdiesTableBody");
+  if (!tbody) return;
+
+  const sorted = [...playersData].sort(
+    (a, b) => (b.totalBirdies || 0) - (a.totalBirdies || 0)
+  );
+
+  if (!sorted.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="px-3 py-2 text-center text-gray-500">Aucun joueur.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted
+    .map((p, index) => {
+      return `
+        <tr>
+          <td class="px-3 py-2 border text-gray-600">${index + 1}</td>
+          <td class="px-3 py-2 border font-medium">${p.name}</td>
+          <td class="px-3 py-2 border text-right">${p.totalBirdies}</td>
+          <td class="px-3 py-2 border text-right">${p.totalTriples}</td>
+          <td class="px-3 py-2 border text-right">${p.birdiesPerGame.toFixed(2)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// --------- Tableau 7 : Score normalisé ----------
+function renderNormalizedTable(playersData) {
+  const tbody = document.getElementById("normalizedTableBody");
+  if (!tbody) return;
+
+  const withNorm = playersData.filter((p) => p.normalizedAvg !== null);
+
+  if (!withNorm.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="px-3 py-2 text-center text-gray-500">Pas assez de données pour calculer les scores normalisés.</td></tr>';
+    return;
+  }
+
+  const sorted = [...withNorm].sort(
+    (a, b) => (a.normalizedAvg || 0) - (b.normalizedAvg || 0)
+  );
+
+  tbody.innerHTML = sorted
+    .map((p, index) => {
+      const avg = p.normalizedAvg ?? 0;
+      const avgText = `${avg > 0 ? "+" : ""}${avg.toFixed(2)}`;
+      const best = p.bestPerf ?? null;
+      const worst = p.worstPerf ?? null;
+
+      return `
+        <tr>
+          <td class="px-3 py-2 border text-gray-600">${index + 1}</td>
+          <td class="px-3 py-2 border font-medium">${p.name}</td>
+          <td class="px-3 py-2 border text-right">${avgText}</td>
+          <td class="px-3 py-2 border text-right">${best !== null ? best.toFixed(2) : "-"}</td>
+          <td class="px-3 py-2 border text-right">${worst !== null ? worst.toFixed(2) : "-"}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+// --------- Tableau 8 : Séries de parties ----------
+function renderStreaksTable(playersData) {
+  const tbody = document.getElementById("streaksTableBody");
+  if (!tbody) return;
+
+  if (!playersData.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="5" class="px-3 py-2 text-center text-gray-500">Aucun joueur.</td></tr>';
+    return;
+  }
+
+  const sorted = [...playersData].sort(
+    (a, b) => (b.streakUnderHcp || 0) - (a.streakUnderHcp || 0)
+  );
+
+  tbody.innerHTML = sorted
+    .map((p, index) => {
+      return `
+        <tr>
+          <td class="px-3 py-2 border text-gray-600">${index + 1}</td>
+          <td class="px-3 py-2 border font-medium">${p.name}</td>
+          <td class="px-3 py-2 border text-right">${p.totalGames}</td>
+          <td class="px-3 py-2 border text-right">${p.streakImproving}</td>
+          <td class="px-3 py-2 border text-right">${p.streakUnderHcp}</td>
         </tr>
       `;
     })
@@ -425,12 +663,12 @@ function buildHandicapHistoryForPlayer(playerId) {
   const history = [];
 
   gamesSorted.forEach((g) => {
-    scoresSoFar.push(g.score);
     const hcp = calculateHandicapFromScores(scoresSoFar, player.startingHandicap);
     history.push({
       date: g.date,
       handicap: hcp
     });
+    scoresSoFar.push(g.score);
   });
 
   return history;
@@ -463,6 +701,7 @@ function renderHandicapGraph(history, playerName) {
   }
 
   // Chart est fourni par le script Chart.js dans statistic.html
+  // @ts-ignore
   handicapChart = new Chart(ctx, {
     type: "line",
     data: {

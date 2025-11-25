@@ -1,15 +1,20 @@
 <!--
   MGM - Suivi de golf intérieur
   Fichier : statistic.html
-  Version : 2.0.0 (DEV)
+  Version : 2.3.0 (DEV)
   Date    : 2025-11-22
   Notes   :
     - Page de statistiques générales
-    - 4 tableaux :
+    - Tableaux :
       1) Classement par handicap
       2) Classement par gains / pertes
       3) Scores de la dernière partie
       4) Dernière partie vs handicap (performance relative)
+      5) Tendance des scores
+      6) Classement birdies / triples
+      7) Score normalisé (moyenne score - handicap)
+      8) Séries de parties (jouées / amélioration / sous handicap)
+    - Graphique de progression de l'handicap par joueur
 -->
 
 <!DOCTYPE html>
@@ -50,27 +55,47 @@
 
     <!-- Zone centrale -->
     <main class="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-4 md:p-6">
-      <!-- Boutons de sélection -->
+      <!-- Barre de menu / onglets -->
       <div class="flex flex-wrap gap-2 mb-4">
         <button
-          class="tab-btn bg-indigo-600 text-white font-semibold py-2 px-3 rounded-md text-sm md:text-base"
+          class="tab-btn bg-indigo-600 text-white font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
           data-target="table-handicap">
-          Classement par handicap
+          Handicap
         </button>
         <button
-          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-sm md:text-base"
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
           data-target="table-winnings">
-          Classement par gains / pertes
+          Gains / pertes
         </button>
         <button
-          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-sm md:text-base"
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
           data-target="table-last-scores">
-          Scores de la dernière partie
+          Dernière partie – scores
         </button>
         <button
-          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-sm md:text-base"
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
           data-target="table-last-net">
           Dernière partie vs handicap
+        </button>
+        <button
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
+          data-target="table-trend">
+          Tendance des scores
+        </button>
+        <button
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
+          data-target="table-birdies">
+          Birdies / triples
+        </button>
+        <button
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
+          data-target="table-normalized">
+          Score normalisé
+        </button>
+        <button
+          class="tab-btn bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-3 rounded-md text-xs md:text-sm"
+          data-target="table-streaks">
+          Séries de parties
         </button>
       </div>
 
@@ -91,7 +116,6 @@
               </tr>
             </thead>
             <tbody id="handicapTableBody" class="divide-y divide-gray-100">
-              <!-- lignes générées par statistic.js -->
             </tbody>
           </table>
         </div>
@@ -109,11 +133,10 @@
               <tr>
                 <th class="px-3 py-2 border">#</th>
                 <th class="px-3 py-2 border">Nom</th>
-                <th class="px-3 py-2 border">Gains / Pertes</th>
+                <th class="px-3 py-2 border">Gains / pertes</th>
               </tr>
             </thead>
             <tbody id="winningsTableBody" class="divide-y divide-gray-100">
-              <!-- lignes générées par statistic.js -->
             </tbody>
           </table>
         </div>
@@ -137,7 +160,6 @@
               </tr>
             </thead>
             <tbody id="lastScoresTableBody" class="divide-y divide-gray-100">
-              <!-- lignes générées par statistic.js -->
             </tbody>
           </table>
         </div>
@@ -162,37 +184,135 @@
               </tr>
             </thead>
             <tbody id="lastNetTableBody" class="divide-y divide-gray-100">
-              <!-- lignes générées par statistic.js -->
             </tbody>
           </table>
         </div>
       </section>
-    
-      
-        <section class="my-8 p-6 bg-white rounded-lg shadow">
-            <h2 class="text-2xl font-bold text-center mb-4">
-                Progression de l'handicap
-            </h2>
 
-            <div class="flex flex-col md:flex-row justify-center items-center gap-4">
-                <select id="playerSelect" class="border border-gray-300 p-2 rounded w-64">
-                    <option value="">-- Sélectionnez un joueur --</option>
-                </select>
+      <!-- Tableau 5 : Tendance des scores -->
+      <section id="table-trend" class="stats-section hidden">
+        <h2 class="text-xl font-semibold mb-2 text-gray-800">Tendance des scores</h2>
+        <p class="text-xs text-gray-500 mb-2">
+          Comparaison des dernières parties avec les parties précédentes. Δ &lt; 0 = amélioration.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm text-left border-collapse">
+            <thead class="bg-gray-100 text-gray-700">
+              <tr>
+                <th class="px-3 py-2 border">#</th>
+                <th class="px-3 py-2 border">Nom</th>
+                <th class="px-3 py-2 border">Δ score (récent - précédent)</th>
+                <th class="px-3 py-2 border">Commentaires</th>
+              </tr>
+            </thead>
+            <tbody id="trendTableBody" class="divide-y divide-gray-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-                <button id="loadGraphBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
-                    Afficher progression
-                </button>
-            </div>
+      <!-- Tableau 6 : Birdies / Triples -->
+      <section id="table-birdies" class="stats-section hidden">
+        <h2 class="text-xl font-semibold mb-2 text-gray-800">Classement birdies / triples</h2>
+        <p class="text-xs text-gray-500 mb-2">
+          Total des birdies et triples enregistrés par joueur.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm text-left border-collapse">
+            <thead class="bg-gray-100 text-gray-700">
+              <tr>
+                <th class="px-3 py-2 border">#</th>
+                <th class="px-3 py-2 border">Nom</th>
+                <th class="px-3 py-2 border">Birdies</th>
+                <th class="px-3 py-2 border">Triples</th>
+                <th class="px-3 py-2 border">Birdies / partie</th>
+              </tr>
+            </thead>
+            <tbody id="birdiesTableBody" class="divide-y divide-gray-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-            <div class="mt-6">
-                <canvas id="handicapChart" height="120"></canvas>
-            </div>
-        </section>
+      <!-- Tableau 7 : Score normalisé -->
+      <section id="table-normalized" class="stats-section hidden">
+        <h2 class="text-xl font-semibold mb-2 text-gray-800">Score normalisé (score - handicap)</h2>
+        <p class="text-xs text-gray-500 mb-2">
+          Moyenne du score par rapport au handicap avant chaque partie. Plus c'est bas, meilleur c'est.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm text-left border-collapse">
+            <thead class="bg-gray-100 text-gray-700">
+              <tr>
+                <th class="px-3 py-2 border">#</th>
+                <th class="px-3 py-2 border">Nom</th>
+                <th class="px-3 py-2 border">Moyenne (score - hcp)</th>
+                <th class="px-3 py-2 border">Meilleure perf</th>
+                <th class="px-3 py-2 border">Pire perf</th>
+              </tr>
+            </thead>
+            <tbody id="normalizedTableBody" class="divide-y divide-gray-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-        <!-- ChartJS -->
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-      </main>
-    </div>
+      <!-- Tableau 8 : Séries de parties -->
+      <section id="table-streaks" class="stats-section hidden">
+        <h2 class="text-xl font-semibold mb-2 text-gray-800">Séries de parties</h2>
+        <p class="text-xs text-gray-500 mb-2">
+          Séries consécutives basées sur les performances récentes par joueur.
+        </p>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-sm text-left border-collapse">
+            <thead class="bg-gray-100 text-gray-700">
+              <tr>
+                <th class="px-3 py-2 border">#</th>
+                <th class="px-3 py-2 border">Nom</th>
+                <th class="px-3 py-2 border">Parties jouées (total)</th>
+                <th class="px-3 py-2 border">Série en amélioration</th>
+                <th class="px-3 py-2 border">Série sous handicap</th>
+              </tr>
+            </thead>
+            <tbody id="streaksTableBody" class="divide-y divide-gray-100">
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- === SECTION GRAPHIQUE DE PROGRESSION DE L'HANDICAP === -->
+      <section class="mt-8 p-4 md:p-6 bg-white rounded-xl shadow-md">
+        <h2 class="text-xl md:text-2xl font-bold text-center mb-4">
+          Progression de l'handicap
+        </h2>
+
+        <div class="flex flex-col md:flex-row justify-center items-center gap-3 md:gap-4 mb-4">
+          <select
+            id="playerSelect"
+            class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full md:w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="">-- Sélectionnez un joueur --</option>
+          </select>
+
+          <button
+            id="loadGraphBtn"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow text-sm"
+            type="button"
+          >
+            Afficher la progression
+          </button>
+        </div>
+
+        <div class="mt-4">
+          <canvas id="handicapChart" height="120"></canvas>
+        </div>
+      </section>
+      <!-- === FIN SECTION GRAPHIQUE === -->
+    </main>
+  </div>
+
+  <!-- ChartJS -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- JS -->
   <script type="module" src="statistic.js"></script>
 </body>
