@@ -409,7 +409,7 @@ function setupUIEvents() {
   }
 }
 
-  // ======================================================
+// ======================================================
 // Envoi d'une notification email quand un joueur régulier
 // se met en "Absent" pour la prochaine partie.
 // Appelle la fonction Netlify /.netlify/functions/sendAbsence
@@ -424,6 +424,16 @@ async function sendAbsenceNotification(player, newStatus) {
     const playerType = player.playerType || "regular";
     if (playerType !== "regular") return;
 
+    // Récupérer tous les remplaçants avec une adresse courriel
+    const substituteEmails = players
+      .filter(p => (p.playerType === "substitute" || p.playerType === "remplacant") && p.email)
+      .map(p => p.email);
+
+    if (!substituteEmails.length) {
+      console.warn("Aucun remplaçant avec courriel, pas d'email envoyé.");
+      return;
+    }
+
     await fetch("/.netlify/functions/sendAbsence", {
       method: "POST",
       headers: {
@@ -434,14 +444,14 @@ async function sendAbsenceNotification(player, newStatus) {
         playerName: player.name || "Sans nom",
         playerType,
         nextProgramDate: nextProgramDateDisplay || null,
+        recipients: substituteEmails, // 🔹 liste des remplaçants
       }),
     });
 
-    // Pas de message à l'écran ici pour ne pas polluer l'interface,
-    // mais on pourrait logguer côté console.
-    console.log("Notification d'absence envoyée pour", player.name);
+    console.log("Notification d'absence envoyée aux remplaçants pour", player.name);
   } catch (err) {
     console.error("Erreur lors de l'appel à sendAbsence:", err);
-    // On ne casse pas l'expérience utilisateur si l'envoi email échoue.
+    // On ne bloque pas l'expérience utilisateur si l'email échoue
   }
 }
+

@@ -1,14 +1,10 @@
 // netlify/functions/sendAbsence.js
-// Fonction serverless Netlify pour envoyer un email via SendGrid
-// quand un joueur régulier signale son absence pour la prochaine partie.
 
 const sgMail = require("@sendgrid/mail");
 
-// Clé API stockée dans Netlify → Environment variable SENDGRID_API_KEY
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
 
 exports.handler = async (event) => {
-  // Autoriser uniquement POST
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
@@ -26,10 +22,9 @@ exports.handler = async (event) => {
 
   sgMail.setApiKey(SENDGRID_API_KEY);
 
-  // Récupérer les données envoyées depuis presence.js
-  let payload;
+  let data;
   try {
-    payload = JSON.parse(event.body || "{}");
+    data = JSON.parse(event.body || "{}");
   } catch (err) {
     console.error("JSON invalide reçu dans sendAbsence:", err);
     return {
@@ -40,40 +35,65 @@ exports.handler = async (event) => {
 
   const {
     playerName = "Un joueur",
-    playerId = "",
-    playerType = "",
+    playerType = "regular",
     nextProgramDate = "",
-  } = payload;
+    recipients = [],
+  } = data;
+
+  // Sécurité : pas de destinataires → on ne tente rien
+  if (!Array.isArray(recipients) || recipients.length === 0) {
+    console.warn("Aucun destinataire dans sendAbsence, email non envoyé.");
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: true, info: "no recipients" }),
+    };
+  }
 
   const dateTexte = nextProgramDate || "la prochaine partie";
-  const sujet = `Absence signalée : ${playerName}`;
-  const texte = `${playerName} a signalé son absence pour la partie du ${dateTexte}.`;
+  const subject = `Place disponible - MGM ${dateTexte}`;
+
+  const text = `Il y a une place de disponible avec les MGM ce mercredi (${dateTexte}). 
+Si vous êtes intéressé, veuillez vous inscrire à cette adresse : https://mgmlorette.ca/presence.html`;
+
   const html = `
-    <p><strong>${playerName}</strong> a signalé son absence pour la partie du <strong>${dateTexte}</strong>.</p>
-    <p>Type de joueur : ${playerType || "inconnu"}</p>
- 
+    <div style="font-family: Arial, sans-serif; padding: 16px;">
+      <h2 style="color:#166534;">Place disponible - Ligue MGM</h2>
+      <p>
+        Il y a une place de disponible avec les <strong>MGM</strong> ce mercredi
+        <strong>${dateTexte}</strong>.
+      </p>
+      <p style="margin-top: 12px;">
+        Si vous êtes intéressé, veuillez vous inscrire à cette adresse :
+      </p>
+      <p style="margin-top: 8px;">
+        <a href="https://mgmlorette.ca/presence.html" style="color:#2563eb;font-weight:bold;">
+          https://mgmlorette.ca/presence.html
+        </a>
+      </p>
+      <hr style="margin-top:20px;margin-bottom:12px;"/>
+      <p style="font-size:12px;color:#555;">
+        Joueur absent : <strong>${playerName}</strong> (${playerType}).
+      </p>
+      <p style="font-size:11px;color:#999;">
+        Ce message a été généré automatiquement par le système MGM.
+      </p>
+    </div>
   `;
 
-  // 🟢 À PERSONNALISER : destinataires et expéditeur
+  // 🟢 À adapter avec TON expéditeur vérifié SendGrid
   const msg = {
-    // Liste des destinataires (admin + éventuellement liste de remplaçants)
-    to: [
-      "jf.bouchard@multifab.ca", // Admin principal
-    
-      // "autre_destinataire@exemple.com"
-    ],
-
-    // Adresse 'from' = celle que TU AS VÉRIFIÉE dans SendGrid (Single Sender)
+    to: recipients, // tous les remplaçants
     from: "jeff.b@videotron.ca",
-
-    subject: sujet,
-    text: texte,
-    html: html,
+    subject,
+    text,
+    html,
   };
 
   try {
     await sgMail.send(msg);
-    console.log("Email sendAbsence envoyé avec succès pour", playerName);
+    console.log(
+      `Email sendAbsence envoyé à ${recipients.length} remplaçants pour ${playerName}`
+    );
 
     return {
       statusCode: 200,
