@@ -43,6 +43,8 @@ let presenceStatusBox;
 let playersPresenceContainer;
 let playerSearchInput;
 let backToHomeBtn;
+// ➕ nouveau : garder la date du prochain programme pour l'email
+let nextProgramDateDisplay = "";
 
 // ======================================================
 // Initialisation
@@ -194,7 +196,9 @@ async function loadNextProgramDate() {
     const secondWednesday = new Date(d.getTime());
     secondWednesday.setDate(secondWednesday.getDate() + 7);
 
-    nextProgramDateSpan.textContent = formatDateFRLong(secondWednesday);
+    nextProgramDateDisplay = formatDateFRLong(secondWednesday);
+    nextProgramDateSpan.textContent = nextProgramDateDisplay;
+
   } catch (error) {
     console.error("Erreur lors du chargement de l'historique des équipes:", error);
     nextProgramDateSpan.textContent = "Non disponible";
@@ -357,14 +361,21 @@ async function handleUpdatePresence(playerId, newStatus) {
     const playerRef = doc(db, "players", playerId);
     await updateDoc(playerRef, { nextWeekStatus: newStatus });
 
-    // Optionnel : petit feedback utilisateur
+    // Feedback utilisateur
     setStatus("Présence mise à jour.", "success");
     setTimeout(() => clearStatus(), 2000);
+
+    // 🔔 Après mise à jour, déclencher éventuellement un courriel
+    const player = players.find((p) => p.id === playerId);
+    if (player) {
+      sendAbsenceNotification(player, newStatus);
+    }
   } catch (error) {
     console.error("Erreur lors de la mise à jour de la présence:", error);
     setStatus("Erreur lors de la mise à jour de la présence. Réessaie.", "error");
   }
 }
+
 
 // ======================================================
 // Événements UI
@@ -395,5 +406,42 @@ function setupUIEvents() {
 
       handleUpdatePresence(playerId, newStatus);
     });
+  }
+}
+
+  // ======================================================
+// Envoi d'une notification email quand un joueur régulier
+// se met en "Absent" pour la prochaine partie.
+// Appelle la fonction Netlify /.netlify/functions/sendAbsence
+// ======================================================
+async function sendAbsenceNotification(player, newStatus) {
+  try {
+    // On envoie un courriel UNIQUEMENT si :
+    // - le nouveau statut est "absent"
+    // - le joueur est de type "regular"
+    if (newStatus !== "absent") return;
+
+    const playerType = player.playerType || "regular";
+    if (playerType !== "regular") return;
+
+    await fetch("/.netlify/functions/sendAbsence", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        playerId: player.id,
+        playerName: player.name || "Sans nom",
+        playerType,
+        nextProgramDate: nextProgramDateDisplay || null,
+      }),
+    });
+
+    // Pas de message à l'écran ici pour ne pas polluer l'interface,
+    // mais on pourrait logguer côté console.
+    console.log("Notification d'absence envoyée pour", player.name);
+  } catch (err) {
+    console.error("Erreur lors de l'appel à sendAbsence:", err);
+    // On ne casse pas l'expérience utilisateur si l'envoi email échoue.
   }
 }
