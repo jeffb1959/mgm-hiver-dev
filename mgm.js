@@ -735,54 +735,77 @@ function setupEventListeners() {
                 }
     });
 
-    addPlayerForm.addEventListener('submit', async (e) => {
+        addPlayerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const playerTypeRadio = document.querySelector('input[name="playerType"]:checked');
         const playerNameInput = document.getElementById('playerName');
         const startingHandicapInput = document.getElementById('startingHandicap');
+        const emailInput = document.getElementById('playerEmail'); // NOUVEAU
         const addPlayerModalEl = document.getElementById('addPlayerModal');
         
-        if(!playerTypeRadio || !playerNameInput || !startingHandicapInput || !addPlayerModalEl) {
-            console.error("Missing elements in Add Player form"); return;
+        if (!playerTypeRadio || !playerNameInput || !startingHandicapInput || !addPlayerModalEl) {
+            console.error("Missing elements in Add Player form"); 
+            return;
         }
+
         const playerType = playerTypeRadio.value;
         const playerName = playerNameInput.value;
+        const email = emailInput ? emailInput.value.trim() : "";
+
         const newPlayer = {
             name: playerName,
             startingHandicap: parseFloat(startingHandicapInput.value),
             playerType: playerType,
+            email: email || null,     // NOUVEAU
             games: [],
             advances: []
         };
+
         try {
-                await addDoc(collection(db, "players"), newPlayer); 
+            await addDoc(collection(db, "players"), newPlayer); 
             e.target.reset();
             addPlayerModalEl.classList.remove('active');
-        } catch (error) { console.error("Error adding player: ", error); }
+        } catch (error) {
+            console.error("Error adding player: ", error);
+        }
     });
 
-    editPlayerForm.addEventListener('submit', async (e) => {
+
+        editPlayerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const playerIdInput = document.getElementById('editPlayerId');
         const playerNameInput = document.getElementById('editPlayerName');
         const startingHandicapInput = document.getElementById('editStartingHandicap');
+        const emailInput = document.getElementById('editPlayerEmail'); // NOUVEAU
         const playerTypeRadio = document.querySelector('input[name="editPlayerType"]:checked');
         const editPlayerModalEl = document.getElementById('editPlayerModal');
-            if(!playerIdInput || !playerNameInput || !startingHandicapInput || !playerTypeRadio || !editPlayerModalEl) {
-            console.error("Missing elements in Edit Player form"); return;
+
+        if (!playerIdInput || !playerNameInput || !startingHandicapInput || !playerTypeRadio || !editPlayerModalEl) {
+            console.error("Missing elements in Edit Player form");
+            return;
         }
+
         const playerId = playerIdInput.value;
         const updatedPlayer = {
             name: playerNameInput.value,
             startingHandicap: parseFloat(startingHandicapInput.value),
             playerType: playerTypeRadio.value
         };
+
+        if (emailInput) {
+            const email = emailInput.value.trim();
+            updatedPlayer.email = email || null; // NOUVEAU
+        }
+
         try {
-            const playerRef = doc(db, "players", playerId); 
-            await updateDoc(playerRef, updatedPlayer); 
+            const playerRef = doc(db, "players", playerId);
+            await updateDoc(playerRef, updatedPlayer);
             editPlayerModalEl.classList.remove('active');
-        } catch (error) { console.error("Error updating player: ", error); }
+        } catch (error) {
+            console.error("Error updating player: ", error);
+        }
     });
+
 
     addAdvanceForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -964,19 +987,28 @@ function openAddGameModal(playerId) {
 }
 
 function openEditPlayerModal(player) {
-        const editPlayerFormEl = document.getElementById('editPlayerForm');
-        const editPlayerIdInput = document.getElementById('editPlayerId');
-        const editPlayerNameInput = document.getElementById('editPlayerName');
-        const editStartingHandicapInput = document.getElementById('editStartingHandicap');
-        const editPlayerModalEl = document.getElementById('editPlayerModal');
-        if(!editPlayerFormEl || !editPlayerIdInput || !editPlayerNameInput || !editStartingHandicapInput || !editPlayerModalEl) return;
+    const editPlayerFormEl = document.getElementById('editPlayerForm');
+    const editPlayerIdInput = document.getElementById('editPlayerId');
+    const editPlayerNameInput = document.getElementById('editPlayerName');
+    const editStartingHandicapInput = document.getElementById('editStartingHandicap');
+    const editPlayerEmailInput = document.getElementById('editPlayerEmail'); // NOUVEAU
+    const editPlayerModalEl = document.getElementById('editPlayerModal');
+
+    if (!editPlayerFormEl || !editPlayerIdInput || !editPlayerNameInput || !editStartingHandicapInput || !editPlayerModalEl) return;
+
     editPlayerFormEl.reset();
     editPlayerIdInput.value = player.id;
     editPlayerNameInput.value = player.name;
     editStartingHandicapInput.value = player.startingHandicap;
+
+    if (editPlayerEmailInput) {
+        editPlayerEmailInput.value = player.email || "";
+    }
+
     const playerType = player.playerType || 'regular';
-        const radioToCheck = document.querySelector(`input[name="editPlayerType"][value="${playerType}"]`);
-        if (radioToCheck) radioToCheck.checked = true;
+    const radioToCheck = document.querySelector(`input[name="editPlayerType"][value="${playerType}"]`);
+    if (radioToCheck) radioToCheck.checked = true;
+
     editPlayerModalEl.classList.add('active');
 }
 

@@ -51,7 +51,7 @@ exports.handler = async (event) => {
   const html = `
     <p><strong>${playerName}</strong> a signalé son absence pour la partie du <strong>${dateTexte}</strong>.</p>
     <p>Type de joueur : ${playerType || "inconnu"}</p>
-    <p>ID joueur : ${playerId}</p>
+ 
   `;
 
   // 🟢 À PERSONNALISER : destinataires et expéditeur
