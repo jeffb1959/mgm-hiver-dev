@@ -28,12 +28,12 @@ async function initializeFirebase() {
     try {
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDX1UFMBssUcrTS6zfFdaJ6oldrPnkj9vI",
-  authDomain: "mgm-hivers-dev.firebaseapp.com",
-  projectId: "mgm-hivers-dev",
-  storageBucket: "mgm-hivers-dev.firebasestorage.app",
-  messagingSenderId: "90366576232",
-  appId: "1:90366576232:web:9ffaad59b68a9db4eb5ddd"
+  apiKey: "AIzaSyC0ZHX83YQ3jpiFAx1wtkOPiwRNqsE9Npw",
+  authDomain: "statgolfv2.firebaseapp.com",
+  projectId: "statgolfv2",
+  storageBucket: "statgolfv2.firebasestorage.app",
+  messagingSenderId: "127072359585",
+  appId: "1:127072359585:web:9c37f6ff0d40c0e07b4ce0"
 };
 
 
